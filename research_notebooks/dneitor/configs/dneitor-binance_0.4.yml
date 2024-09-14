@@ -1,0 +1,206 @@
+id: dneitor-binance_0.4
+controller_name: dneitor
+controller_type: generic
+manual_kill_switch: null
+candles_config: []
+markets:
+- connector_name: binance
+  trading_pair: SOL-FDUSD
+  total_amount_quote: 995.41
+  prices:
+  - 193.68
+  - 180.6325
+  - 154.28769230769228
+  - 140.103
+  - 127.62833333333332
+  - 110.98500000000001
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.0032822529584174225
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: DOGE-FDUSD
+  total_amount_quote: 300.25
+  prices:
+  - 0.13502
+  - 0.12481545454545455
+  - 0.1108990909090909
+  - 0.09576066666666666
+  - 0.08915666666666666
+  - 0.08159
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.0028402570560625913
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: XRP-FDUSD
+  total_amount_quote: 275.16
+  prices:
+  - 0.6585
+  - 0.6261375
+  - 0.5969375
+  - 0.55985
+  - 0.49794166666666656
+  - 0.44486
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.002718035842047968
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: PEPE-FDUSD
+  total_amount_quote: 209.96
+  prices:
+  - 1.235e-05
+  - 1.1348888888888888e-05
+  - 9.785384615384616e-06
+  - 7.8325e-06
+  - 6.986666666666666e-06
+  - 5.966666666666666e-06
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.00396249309338218
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: WIF-FDUSD
+  total_amount_quote: 205.74
+  prices:
+  - 2.562
+  - 2.283916666666667
+  - 1.8605714285714285
+  - 1.5921818181818181
+  - 1.369625
+  - 1.191142857142857
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.004218809473862361
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: NOT-FDUSD
+  total_amount_quote: 205.06
+  prices:
+  - 0.01404
+  - 0.012945833333333335
+  - 0.012363333333333332
+  - 0.01160230769230769
+  - 0.010745714285714284
+  - 0.009165555555555557
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.0036321253982309317
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: BOME-FDUSD
+  total_amount_quote: 202.66
+  prices:
+  - 0.01127
+  - 0.010525727272727272
+  - 0.009778374999999999
+  - 0.0086478
+  - 0.006801583333333333
+  - 0.005733625
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.004203144685877443
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: ENA-FDUSD
+  total_amount_quote: 202.0
+  prices:
+  - 0.474
+  - 0.439625
+  - 0.3997
+  - 0.35842857142857143
+  - 0.313
+  - 0.259
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.0028859238631168274
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: NEAR-FDUSD
+  total_amount_quote: 201.93
+  prices:
+  - 5.692
+  - 5.18775
+  - 4.716333333333334
+  - 4.235499999999999
+  - 3.540909090909091
+  - 3.138
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.0030646964709349737
+  activation_bounds: 0.002
+  max_open_orders: 1
+- connector_name: binance
+  trading_pair: BONK-FDUSD
+  total_amount_quote: 201.83
+  prices:
+  - 2.934e-05
+  - 2.656e-05
+  - 2.2671428571428573e-05
+  - 2.03175e-05
+  - 1.819888888888889e-05
+  - 1.5779999999999998e-05
+  amounts_quote_pct:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.2
+  - 0.2
+  take_profit: 0.003464393951415496
+  activation_bounds: 0.002
+  max_open_orders: 1
