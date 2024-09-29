@@ -29,7 +29,7 @@ class ASV2MarketMakingBacktesting(MarketMakingBacktesting):
 
         # This should be fine since the previous information is already stored in the processed_data.
         await self.controller.update_processed_data()
-        print(self.controller.processed_data)
+
 
     async def run_backtesting(
         self,
@@ -47,7 +47,6 @@ class ASV2MarketMakingBacktesting(MarketMakingBacktesting):
         # Load historical candles
         self.backtesting_data_provider.update_backtesting_time(start, end)
         controller_class = controller_config.get_controller_class()
-        print(controller_class)
         self.controller = controller_class(
             config=controller_config,
             market_data_provider=self.backtesting_data_provider,
@@ -56,12 +55,13 @@ class ASV2MarketMakingBacktesting(MarketMakingBacktesting):
         self.backtesting_resolution = backtesting_resolution
         await self.initialize_backtesting_data_provider()
         # await self.update_processed_data()
+        self.as_bt_records = []
         executors_info = await self.simulate_execution(trade_cost=trade_cost)
         results = self.summarize_results(executors_info)
         return {
             "executors": executors_info,
             "results": results,
-            "processed_data": self.controller.processed_data,
+            "bt_records": self.as_bt_records,
         }
     
     async def simulate_execution(self, trade_cost: float) -> list:
@@ -79,8 +79,15 @@ class ASV2MarketMakingBacktesting(MarketMakingBacktesting):
         self.stopped_executors_info: List[ExecutorInfo] = []
         for i, row in candles_df.iterrows():
             self.update_market_data(row) # for each row, update the price and timestamp to the controller.
-            # TODO: need to think about how to integrate update_processed_data() with row
             await self.update_processed_data(row) # based on previous row's information.
+            cur_processed_data = self.controller.processed_data
+            cur_parameters = self.controller.parameters
+            combined_data = {
+                'timestamp': row['timestamp'],
+                **cur_processed_data,
+                **cur_parameters
+            }
+            self.as_bt_records.append(combined_data)
             self.update_executors_info(row["timestamp"])
             for action in self.controller.determine_executor_actions():
                 if isinstance(action, CreateExecutorAction):

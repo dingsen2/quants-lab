@@ -19,6 +19,7 @@ from hummingbot.strategy_v2.controllers.market_making_controller_base import (
 )
 from hummingbot.strategy_v2.executors.position_executor.data_types import PositionExecutorConfig
 from hummingbot.data_feed.candles_feed.candles_factory import CandlesConfig, CandlesFactory
+import requests
 
 
 class AvellanedaStoikovBacktestingV2ControllerConfig(MarketMakingControllerConfigBase):
@@ -36,7 +37,7 @@ class AvellanedaStoikovBacktestingV2ControllerConfig(MarketMakingControllerConfi
     # sell_amounts_pct: Union[List[float], None] = Field(default=[], client_data=ClientFieldData(prompt_on_new=False))
 
     # dingsen: newly added fields
-    target_base_quote_ratio: Optional[Decimal] = Field(
+    target_base_ratio: Optional[Decimal] = Field(
         default=Decimal("0.5"), gt=0,
         client_data=ClientFieldData(
             is_updatable=True,
@@ -141,7 +142,7 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
         self.price_source = PriceType.MidPrice
         self.candles = None
         self.max_records = self.config.max_records
-
+        self.step_size = self.get_step_size()
         if len(self.config.candles_config) == 0:
             self.config.candles_config = [CandlesConfig(
                 connector=config.candles_connector,
@@ -162,9 +163,10 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
             "reference_price": Decimal(0),
             "reservation_price": Decimal(0),
             "optimal_spread": Decimal(0),
-            "inventory": Decimal(0),
             "base_balance": self.config.start_base_balance,
             "quote_balance": self.config.start_quote_balance,
+            "cur_buy_price": Decimal(0),
+            "cur_sell_price": Decimal(0),
         }
         self.level_amount = 1
 
@@ -207,29 +209,72 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
             if not executor_info.is_trading:
                 continue
             if executor_info.config.side == TradeType.BUY: # Now it's buying base asset
-                self.processed_data["base_balance"] += executor_info.filled_amount_quote
-                self.processed_data["quote_balance"] -= executor_info.config.amount
+                self.processed_data["base_balance"] += executor_info.config.amount
+                self.processed_data["quote_balance"] -= executor_info.filled_amount_quote
             else: # Now it's selling base asset
-                self.processed_data["base_balance"] -= executor_info.filled_amount_quote
-                self.processed_data["quote_balance"] += executor_info.config.amount
+                self.processed_data["base_balance"] -= executor_info.config.amount
+                self.processed_data["quote_balance"] += executor_info.filled_amount_quote
 
-    def quantize_order_amount(self, amount: Decimal):
-        """
-        dingsen: This function should quantize the order amount based on the min order size and min amount increment
-        """
-        order_size_quantum = self.processed_data["reference_price"] / self.config.min_order_price
-        return (amount // order_size_quantum) * order_size_quantum
+        # Calculate and record buy and sell prices
+        buy_price = self.processed_data["reservation_price"] * (1 - self.processed_data["buy_spread_pct"])
+        sell_price = self.processed_data["reservation_price"] * (1 + self.processed_data["sell_spread_pct"])
+        
+        # Record the buy and sell prices in processed_data
+        self.processed_data["cur_buy_price"] = Decimal(buy_price)
+        self.processed_data["cur_sell_price"] = Decimal(sell_price)
 
-    def calculate_target_inventory(self):
+    def quantize_order_amount(self, amount: Decimal) -> Decimal:
+        """
+        Quantize the order amount based on the min step size.
+        
+        :param amount: The original amount to be quantized
+        :return: The quantized amount
+        """
+        
+        
+        # Convert to float for calculation
+        amount_f = float(amount)
+        step_size_f = float(self.step_size)
+        
+        # Calculate the quantized amount
+        quantized_amount = Decimal(str(step_size_f * round(amount_f / step_size_f)))
+        
+        # Ensure the quantized amount is not less than the minimum order size
+        # min_order_size = self.config.min_order_price / self.processed_data["reference_price"]
+        # quantized_amount = max(quantized_amount, min_order_size)
+        
+        return quantized_amount.normalize()
+    
+    def get_step_size(self):
+        """
+        dingsen: This function should get the step size of the trading pair from the exchange info.
+        """
+        url = "https://api.binance.com/api/v3/exchangeInfo"
+        response = requests.get(url)
+        exchange_info = response.json()
+        trading_pair_no_dash = self.config.trading_pair.replace("-", "")
+        for symbol_info in exchange_info["symbols"]:
+            if symbol_info["symbol"] == trading_pair_no_dash:
+                for filter_info in symbol_info["filters"]:
+                    if filter_info["filterType"] == "LOT_SIZE":
+                        return Decimal(filter_info["stepSize"])
+        return Decimal(0)
+
+    def calculate_target_base(self):
+        """
+        This function is to calculate the target inventory in base asset.
+        """
         price = self.processed_data["reference_price"]
         base_balance = self.processed_data["base_balance"]
         quote_balance = self.processed_data["quote_balance"]
         # Base asset value in quote asset prices
         base_value = base_balance * price
         # Total inventory value in quote asset prices
-        inventory_value = base_value + quote_balance
+        total_inventory_value = base_value + quote_balance
         # Target base asset value in quote asset prices
-        target_inventory_value = inventory_value * self.config.target_base_quote_ratio
+        target_inventory_value = total_inventory_value * self.config.target_base_ratio
+        # print("target_base_ratio", self.config.target_base_ratio)
+        # print("target_inventory_value", target_inventory_value) 
         # Target base asset amount
         target_inventory_amount = target_inventory_value / price
         return self.quantize_order_amount(Decimal(str(target_inventory_amount)))
@@ -257,10 +302,15 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
 
         TODO: Understand what's going on in the paper and calculated q based on that.
         """
-        q_target = Decimal(str(self.calculate_target_inventory()))
+        # calculate 
+        targe_base = Decimal(str(self.calculate_target_base()))
         current_inventory = Decimal(str(self.calculate_current_inventory()))
         base_balance = self.processed_data["base_balance"]
-        q = (base_balance - q_target) / current_inventory
+        q = (base_balance - targe_base) / current_inventory
+        # print("base_balance", base_balance)
+        # print("targe_base", targe_base)
+        # print("current_inventory", current_inventory)
+        # print("q", q)
         # print("q", q)
         return q
 
@@ -273,8 +323,9 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
         """
         # dingsen: here we are fetching the ATR as a signal of volatility
         candles_df = self.candles
-        candles_df.ta.natr(length=self.config.natr_length, scalar=1, append=True)
-        sigma = Decimal(candles_df[f"NATR_{self.config.natr_length}"].iloc[-1])  # set gamma to be NATR
+        # candles_df.ta.natr(length=self.config.natr_length, scalar=1, append=True)
+        candles_df["natr"] = ta.natr(candles_df["high"], candles_df["low"], candles_df["close"], length=self.config.natr_length) / 100
+        sigma = Decimal(candles_df["natr"].iloc[-1])  # set gamma to be NATR
         return sigma
 
     def calculate_risk_factor(self):
