@@ -143,6 +143,7 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
         self.candles = None
         self.max_records = self.config.max_records
         self.step_size = self.get_step_size()
+        self.tick_size = self.get_tick_size()
         if len(self.config.candles_config) == 0:
             self.config.candles_config = [CandlesConfig(
                 connector=config.candles_connector,
@@ -165,8 +166,8 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
             "optimal_spread": Decimal(0),
             "base_balance": self.config.start_base_balance,
             "quote_balance": self.config.start_quote_balance,
-            "cur_buy_price": Decimal(0),
-            "cur_sell_price": Decimal(0),
+            "buy_price": Decimal(0),
+            "sell_price": Decimal(0),
         }
         self.level_amount = 1
 
@@ -216,18 +217,21 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
                 self.processed_data["quote_balance"] += executor_info.filled_amount_quote
 
         # Calculate and record buy and sell prices
-        buy_price = self.processed_data["reservation_price"] * (1 - self.processed_data["buy_spread_pct"])
-        sell_price = self.processed_data["reservation_price"] * (1 + self.processed_data["sell_spread_pct"])
+        raw_buy_price = self.processed_data["reservation_price"] * (1 - self.processed_data["buy_spread_pct"])
+        raw_sell_price = self.processed_data["reservation_price"] * (1 + self.processed_data["sell_spread_pct"])
+        buy_price = Decimal(int(raw_buy_price / self.tick_size) * self.tick_size)
+        sell_price = Decimal(int(raw_sell_price / self.tick_size) * self.tick_size)
         
         # Record the buy and sell prices in processed_data
-        self.processed_data["cur_buy_price"] = Decimal(buy_price)
-        self.processed_data["cur_sell_price"] = Decimal(sell_price)
+        self.processed_data["cur_buy_price"] = buy_price
+        self.processed_data["cur_sell_price"] = sell_price
 
     def quantize_order_amount(self, amount: Decimal) -> Decimal:
         """
         Quantize the order amount based on the min step size.
-        
-        :param amount: The original amount to be quantized
+        The step size is the minimum amount of the base asset that can be traded. 
+        For example, if the step size is 0.01, then the minimum amount of the base asset that can be traded is 0.01.
+        :param amount: The original amount to be quantized. 
         :return: The quantized amount
         """
         
@@ -248,6 +252,7 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
     def get_step_size(self):
         """
         dingsen: This function should get the step size of the trading pair from the exchange info.
+        The step size is the minimum increment of the base asset that can be traded. 
         """
         url = "https://api.binance.com/api/v3/exchangeInfo"
         response = requests.get(url)
@@ -259,6 +264,22 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
                     if filter_info["filterType"] == "LOT_SIZE":
                         return Decimal(filter_info["stepSize"])
         return Decimal(0)
+    
+    def get_tick_size(self):
+        """
+        dingsen: This function should get the tick size of the trading pair from the exchange info.
+        """
+        url = "https://api.binance.com/api/v3/exchangeInfo"
+        response = requests.get(url)
+        exchange_info = response.json()
+        trading_pair_no_dash = self.config.trading_pair.replace("-", "")
+        for symbol_info in exchange_info["symbols"]:
+            if symbol_info["symbol"] == trading_pair_no_dash:
+                for filter_info in symbol_info["filters"]:
+                    if filter_info["filterType"] == "PRICE_FILTER":
+                        return Decimal(filter_info["tickSize"])
+        return Decimal(0)
+    
 
     def calculate_target_base(self):
         """
@@ -397,7 +418,11 @@ class AvellanedaStoikovBacktestingV2Controller(MarketMakingControllerBase):
         spread_in_pct = self.processed_data["buy_spread_pct"]
 
         side_multiplier = Decimal("-1") if trade_type == TradeType.BUY else Decimal("1")
-        order_price = reservation_price * (1 + side_multiplier * spread_in_pct)
+        raw_order_price = reservation_price * (1 + side_multiplier * spread_in_pct)
+        # Ensure the order price is a multiple of the tick size
+        order_price = Decimal(int(raw_order_price / self.tick_size) * self.tick_size)
+        # print("raw_order_price", raw_order_price)
+        # print("order_price", order_price)
         return (order_price,
                 Decimal(order_amount) / order_price)  # dingsen: divided by order_price to get the amount in base asset
 

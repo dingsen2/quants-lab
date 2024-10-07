@@ -45,7 +45,9 @@ class ASV2MarketMakingBacktesting(MarketMakingBacktesting):
             # 3. determine the executor actions
             # 4. simulate the executor actions
         # Load historical candles
+        # TODO: For here, we need to fetch all the data 30 intervals before so that all the data for calculating sigma can be fetched.
         self.backtesting_data_provider.update_backtesting_time(start, end)
+
         controller_class = controller_config.get_controller_class()
         self.controller = controller_class(
             config=controller_config,
@@ -53,7 +55,7 @@ class ASV2MarketMakingBacktesting(MarketMakingBacktesting):
             actions_queue=None
         ) # dingsen: This line will run the __init__() function in the controller.
         self.backtesting_resolution = backtesting_resolution
-        await self.initialize_backtesting_data_provider()
+        await self.initialize_backtesting_data_provider() # fetch candles data here.
         # await self.update_processed_data()
         self.as_bt_records = []
         executors_info = await self.simulate_execution(trade_cost=trade_cost)
@@ -78,6 +80,7 @@ class ASV2MarketMakingBacktesting(MarketMakingBacktesting):
         self.active_executor_simulations: List[ExecutorSimulation] = []
         self.stopped_executors_info: List[ExecutorInfo] = []
         for i, row in candles_df.iterrows():
+            # TODO: we need to customize the update_market_data function so that we could use specific data range to calculate sigma.
             self.update_market_data(row) # for each row, update the price and timestamp to the controller.
             await self.update_processed_data(row) # based on previous row's information.
             cur_processed_data = self.controller.processed_data
